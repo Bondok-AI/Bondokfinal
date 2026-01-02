@@ -1,0 +1,23 @@
+{
+  "name": "حكاياتي الذكية - My Smart Tales",
+  "short_name": "حكاياتي",
+  "description": "تطبيق قصص أطفال تفاعلي بالذكاء الاصطناعي - Arabic Interactive Children's Storybook",
+  "start_url": "/Bondokfinal/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fef9c3",
+  "theme_color": "#4f46e5",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["kids", "education", "entertainment", "books"],
+  "icons": [
+    {
+      "src": "/Bondokfinal/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

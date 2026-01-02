@@ -2,29 +2,119 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Page, PageChoice } from '../types';
 import { decodeBase64, decodeAudioData, speakWithBrowser } from '../services/geminiService';
+import LazyImage from './LazyImage';
 
 interface StoryPageProps {
   page: Page | undefined;
   pageNumber: number;
+  totalPages?: number;
   autoStart?: boolean;
   onEnded?: () => void;
   onChoiceSelected?: (choice: PageChoice) => void;
   isChoiceLoading?: boolean;
+  onSwipeLeft?: () => void;  // التالي
+  onSwipeRight?: () => void; // السابق
+  canSwipeLeft?: boolean;
+  canSwipeRight?: boolean;
 }
+
+// Minimum swipe distance to trigger navigation (in pixels)
+const SWIPE_THRESHOLD = 50;
+// Maximum time for a swipe gesture (in ms)
+const SWIPE_TIME_LIMIT = 300;
 
 const StoryPage: React.FC<StoryPageProps> = ({
   page,
   pageNumber,
+  totalPages = 1,
   autoStart,
   onEnded,
   onChoiceSelected,
-  isChoiceLoading
+  isChoiceLoading,
+  onSwipeLeft,
+  onSwipeRight,
+  canSwipeLeft = true,
+  canSwipeRight = true
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const playRequestIdRef = useRef<number>(0);
   const fallbackTimeoutRef = useRef<number>(0);
+
+  // Swipe gesture state
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  // Haptic feedback helper
+  const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
+    if ('vibrate' in navigator) {
+      const patterns = { light: 10, medium: 20, heavy: 30 };
+      navigator.vibrate(patterns[style]);
+    }
+  };
+
+  // Touch handlers for swipe navigation
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now()
+    };
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+    
+    // Only handle horizontal swipes (ignore vertical scrolling)
+    if (deltaY > Math.abs(deltaX)) {
+      return;
+    }
+    
+    // Limit the swipe offset with resistance at edges
+    const maxOffset = 150;
+    const resistance = 0.5;
+    let offset = deltaX;
+    
+    // Apply resistance when can't swipe in that direction
+    if ((deltaX > 0 && !canSwipeRight) || (deltaX < 0 && !canSwipeLeft)) {
+      offset = deltaX * resistance * 0.3;
+    }
+    
+    setSwipeOffset(Math.max(-maxOffset, Math.min(maxOffset, offset)));
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current) return;
+    
+    const deltaTime = Date.now() - touchStartRef.current.time;
+    const isQuickSwipe = deltaTime < SWIPE_TIME_LIMIT;
+    
+    // Determine if swipe should trigger navigation
+    if (Math.abs(swipeOffset) > SWIPE_THRESHOLD || (isQuickSwipe && Math.abs(swipeOffset) > 30)) {
+      if (swipeOffset < 0 && canSwipeLeft && onSwipeLeft) {
+        // Swiped left -> go to next page (RTL: left is forward)
+        triggerHaptic('medium');
+        onSwipeLeft();
+      } else if (swipeOffset > 0 && canSwipeRight && onSwipeRight) {
+        // Swiped right -> go to previous page (RTL: right is backward)
+        triggerHaptic('medium');
+        onSwipeRight();
+      }
+    }
+    
+    // Reset swipe state
+    setSwipeOffset(0);
+    setIsSwiping(false);
+    touchStartRef.current = null;
+  };
 
   const stopAudio = () => {
     playRequestIdRef.current += 1;
@@ -134,19 +224,44 @@ const StoryPage: React.FC<StoryPageProps> = ({
   const hasChoices = page.choices && page.choices.length > 0;
   const isLocked = !!page.chosenChoiceId;
 
+  // Swipe indicator visibility
+  const showLeftIndicator = isSwiping && swipeOffset < -20 && canSwipeLeft;
+  const showRightIndicator = isSwiping && swipeOffset > 20 && canSwipeRight;
+
   return (
-    <div className="page-transition-enter flex flex-col items-center bg-white rounded-[4rem] shadow-2xl p-6 md:p-12 max-w-5xl w-full mx-auto border-8 border-white relative ring-8 ring-indigo-50/50">
-      <div className="absolute -top-6 -right-6 w-20 h-20 bg-yellow-400 rounded-full flex items-center justify-center text-white font-black text-4xl shadow-xl z-10 animate-sparkle">✨</div>
+    <div
+      className="relative touch-pan-y select-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Swipe direction indicators */}
+      <div className={`absolute left-4 top-1/2 -translate-y-1/2 z-20 transition-all duration-200 ${showRightIndicator ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
+        <div className="bg-indigo-600 text-white p-4 rounded-full shadow-xl">
+          <span className="text-2xl">→</span>
+        </div>
+      </div>
+      <div className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 transition-all duration-200 ${showLeftIndicator ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
+        <div className="bg-indigo-600 text-white p-4 rounded-full shadow-xl">
+          <span className="text-2xl">←</span>
+        </div>
+      </div>
+
+      <div 
+        className="page-transition-enter flex flex-col items-center bg-white rounded-[4rem] shadow-2xl p-6 md:p-12 max-w-5xl w-full mx-auto border-8 border-white relative ring-8 ring-indigo-50/50 transition-transform duration-100"
+        style={{ transform: `translateX(${swipeOffset}px)` }}
+      >
+        <div className="absolute -top-6 -right-6 w-20 h-20 bg-yellow-400 rounded-full flex items-center justify-center text-white font-black text-4xl shadow-xl z-10 animate-sparkle">✨</div>
 
       <div className="relative w-full aspect-video rounded-[3rem] overflow-hidden bg-indigo-50 border-4 border-indigo-100 group shadow-inner">
-        {page.imageUrl ? (
-          <img src={page.imageUrl} alt="" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full space-y-6">
-            <div className="w-20 h-20 border-[6px] border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-            <p className="font-black text-indigo-400 text-2xl animate-pulse text-center px-4">بندوق يرسم اللوحة السحرية لهذا المشهد...</p>
-          </div>
-        )}
+        <LazyImage 
+          src={page.imageUrl} 
+          alt="" 
+          className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+          placeholderClassName="w-full h-full"
+          loadingText="بندوق يرسم اللوحة السحرية لهذا المشهد..."
+          showSpinner={true}
+        />
       </div>
 
       <div className="mt-12 text-center space-y-10 w-full">
@@ -204,6 +319,7 @@ const StoryPage: React.FC<StoryPageProps> = ({
             )}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

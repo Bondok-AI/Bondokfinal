@@ -3,7 +3,21 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="description" content="تطبيق قصص أطفال تفاعلي بالذكاء الاصطناعي - حكاياتي الذكية" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    
     <title>حكاياتي الذكية</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -72,6 +86,76 @@
         background: #cbd5e1;
         border-radius: 10px;
       }
+
+      /* Safe Area Insets for notch/home indicator */
+      .safe-top {
+        padding-top: max(1.5rem, env(safe-area-inset-top));
+      }
+      .safe-bottom {
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+      }
+      .safe-left {
+        padding-left: max(1rem, env(safe-area-inset-left));
+      }
+      .safe-right {
+        padding-right: max(1rem, env(safe-area-inset-right));
+      }
+      .safe-all {
+        padding-top: max(1rem, env(safe-area-inset-top));
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+      }
+      /* Fixed positioning with safe areas */
+      .fixed-safe-top {
+        top: max(1.5rem, env(safe-area-inset-top));
+      }
+      .fixed-safe-bottom {
+        bottom: max(1.5rem, env(safe-area-inset-bottom));
+      }
+      .fixed-safe-left {
+        left: max(1.5rem, env(safe-area-inset-left));
+      }
+      .fixed-safe-right {
+        right: max(1.5rem, env(safe-area-inset-right));
+      }
+
+      /* Floating button animation */
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+      .animate-float {
+        animation: float 3s ease-in-out infinite;
+      }
+
+      /* Pop-in animation */
+      @keyframes popIn {
+        0% { transform: scale(0.8); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-pop-in {
+        animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      /* Shake animation for errors */
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-5px); }
+        40%, 80% { transform: translateX(5px); }
+      }
+      .animate-shake {
+        animation: shake 0.4s ease-in-out;
+      }
+
+      /* Reduce motion for accessibility */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
     </style>
   <script type="importmap">
 {
@@ -83,10 +167,38 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered:', registration.scope);
+            
+            // Check for updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New content available, show update prompt
+                  if (confirm('تحديث جديد متاح! هل تريد التحديث الآن؟')) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    window.location.reload();
+                  }
+                }
+              });
+            });
+          })
+          .catch((error) => {
+            console.log('SW registration failed:', error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>

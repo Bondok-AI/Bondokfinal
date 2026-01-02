@@ -47,9 +47,20 @@ const LibraryView: React.FC<LibraryViewProps> = ({ stories, onSelect, onClose })
                 >
                   <div className="aspect-[4/3] bg-indigo-100 relative">
                     {story.pages[0]?.imageUrl ? (
-                      <img src={story.pages[0].imageUrl} alt={story.title} className="w-full h-full object-cover" />
+                      <img 
+                        src={story.pages[0].imageUrl} 
+                        alt={story.title} 
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover transition-opacity duration-300" 
+                      />
                     ) : (
-                      <div className="flex items-center justify-center h-full text-4xl">🎨</div>
+                      <div className="flex items-center justify-center h-full text-4xl bg-gradient-to-br from-indigo-100 to-purple-100">
+                        <div className="text-center">
+                          <span className="text-5xl block mb-2">🎨</span>
+                          <span className="text-indigo-300 text-sm font-bold">بدون صورة</span>
+                        </div>
+                      </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
                        <span className="text-white font-black text-xl line-clamp-2">{story.title}</span>

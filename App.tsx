@@ -3,11 +3,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Story, Page, ChildProfile, ParentConfig, PageChoice } from './types';
 import { generateStoryStructure, generateIllustration, generateSpeech, suggestStoryTopics, generateNextPageFromChoice } from './services/geminiService';
 import { storePageAssets, hydrateStoryAssets } from './services/storageService';
+import { triggerHaptic } from './utils/mobileUtils';
 import StoryPage from './components/StoryPage';
-import AssistantChat from './components/AssistantChat';
 import LibraryView from './components/LibraryView';
 import ProfileSelector from './components/ProfileSelector';
 import ParentGate from './components/ParentGate';
+import BottomNavBar, { NavTab } from './components/BottomNavBar';
 
 const App: React.FC = () => {
   const [currentProfile, setCurrentProfile] = useState<ChildProfile | null>(null);
@@ -46,6 +47,7 @@ const App: React.FC = () => {
   const [showLibrary, setShowLibrary] = useState(false);
   const [showParentGate, setShowParentGate] = useState(false);
   const [showProfileManager, setShowProfileManager] = useState(false);
+  const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [genProgress, setGenProgress] = useState({ current: 0, total: 0, stage: '' });
   const [isChoiceLoading, setIsChoiceLoading] = useState(false);
@@ -320,6 +322,26 @@ const App: React.FC = () => {
   const handleProfileSelect = (p: ChildProfile) => {
     setCurrentProfile(p);
     closeStory();
+    setActiveTab('home');
+  };
+
+  // Handle bottom nav tab changes
+  const handleTabChange = (tab: NavTab) => {
+    triggerHaptic('selection');
+    setActiveTab(tab);
+    
+    switch (tab) {
+      case 'home':
+        setShowLibrary(false);
+        break;
+      case 'library':
+        setShowLibrary(true);
+        break;
+      case 'profile':
+        setCurrentProfile(null);
+        setShowLibrary(false);
+        break;
+    }
   };
 
   const storyPages = story?.pages || [];
@@ -328,7 +350,7 @@ const App: React.FC = () => {
   const isLastPage = currentPage === (storyPages.length - 1);
 
   return (
-    <div className="min-h-screen pb-32 px-4 pt-12 md:pt-20">
+    <div className="min-h-screen pb-24 px-3 md:px-6 pt-4 md:pt-8 safe-top">
       {showParentGate && (
         <ParentGate
           parentConfig={parentConfig}
@@ -375,49 +397,45 @@ const App: React.FC = () => {
         />
       ) : (
         <>
-          <div className="fixed top-6 left-6 right-6 flex justify-between items-center z-40">
-            <button onClick={() => setCurrentProfile(null)} className="flex items-center gap-3 bg-white p-2 pr-6 rounded-full shadow-lg border-4 border-white hover:scale-105 transition-all">
-              <span className="font-black text-slate-800 text-xl">{currentProfile.name}</span>
-              <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-3xl">{currentProfile.avatar}</div>
-            </button>
-            <button onClick={() => setShowLibrary(true)} className="bg-indigo-600 text-white px-8 py-4 rounded-full shadow-lg border-4 border-white font-black hover:scale-105 transition-all">📚 قصصي ({currentProfile.library?.length || 0})</button>
-          </div>
-
-          <header className="text-center mb-16">
-            <h1 className="text-8xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-blue-600 to-indigo-800 mb-6 drop-shadow-xl select-none">حكاياتي ✨</h1>
+          {/* Compact header with welcome message */}
+          <header className="text-center mb-6 md:mb-10 pt-2">
+            <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-blue-600 to-indigo-800 mb-2 select-none">حكاياتي ✨</h1>
+            <p className="text-lg md:text-xl text-indigo-600 font-bold">
+              مرحباً {currentProfile.name}! {currentProfile.avatar}
+            </p>
           </header>
 
-          <main className="max-w-6xl mx-auto relative min-h-[400px]">
+          <main className="max-w-4xl mx-auto relative">
             {isGenerating && (
-              <div className="flex flex-col items-center justify-center space-y-8 bg-white/80 backdrop-blur-sm p-20 rounded-[4rem] shadow-2xl border-8 border-white">
-                <div className="w-24 h-24 border-8 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+              <div className="flex flex-col items-center justify-center space-y-6 bg-white/90 backdrop-blur-sm p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] shadow-xl border-4 border-white">
+                <div className="w-16 h-16 md:w-20 md:h-20 border-6 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
                 <div className="text-center">
-                  <p className="text-4xl font-black text-indigo-900 mb-2">{genProgress.stage}</p>
-                  <p className="text-xl text-indigo-400 font-bold">بندوق يبذل قصارى جهده لجعلها مميزة...</p>
+                  <p className="text-2xl md:text-3xl font-black text-indigo-900 mb-1">{genProgress.stage}</p>
+                  <p className="text-base md:text-lg text-indigo-400 font-bold">بندوق يبذل قصارى جهده...</p>
                 </div>
               </div>
             )}
 
             {!isGenerating && !story && (
-              <div className="max-w-3xl mx-auto bg-white rounded-[4rem] shadow-2xl p-10 md:p-16 border-8 border-white space-y-12">
-                <div className="space-y-6">
-                  <label className="block text-3xl font-black text-slate-800 text-center">عن ماذا تود أن تكون الحكاية اليوم؟</label>
+              <div className="bg-white rounded-[2rem] md:rounded-[3rem] shadow-xl p-6 md:p-10 border-4 border-white space-y-6 md:space-y-8">
+                <div className="space-y-4">
+                  <label className="block text-xl md:text-2xl font-black text-slate-800 text-center">عن ماذا تود أن تكون الحكاية اليوم؟</label>
                   <input
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     placeholder="مثلاً: مغامرة في أعماق البحار..."
-                    className="w-full p-8 rounded-[2.5rem] bg-slate-50 border-4 border-slate-100 text-2xl font-bold text-center focus:outline-none focus:border-indigo-400 transition-all shadow-inner"
+                    className="w-full p-4 md:p-6 rounded-2xl md:rounded-[2rem] bg-slate-50 border-2 border-slate-100 text-lg md:text-xl font-bold text-center focus:outline-none focus:border-indigo-400 transition-all"
                   />
                 </div>
 
                 {suggestions.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-4">
+                  <div className="flex flex-wrap justify-center gap-2 md:gap-3">
                     {suggestions.map((s, i) => (
                       <button
                         key={i}
                         onClick={() => setTopic(s)}
-                        className="bg-indigo-50 text-indigo-700 px-6 py-3 rounded-2xl font-black text-lg hover:bg-indigo-100 transition-colors border-2 border-indigo-100"
+                        className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl font-bold text-sm md:text-base hover:bg-indigo-100 transition-colors border border-indigo-100"
                       >
                         {s}
                       </button>
@@ -425,15 +443,15 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex flex-col items-center gap-8 pt-4">
-                  <div className="flex items-center gap-6 bg-slate-50 px-8 py-4 rounded-3xl border-2 border-slate-100 shadow-sm">
-                    <span className="text-xl font-black text-slate-500">عدد الصفحات:</span>
-                    <div className="flex items-center gap-4">
+                <div className="flex flex-col items-center gap-4 md:gap-6">
+                  <div className="flex items-center gap-3 md:gap-4 bg-slate-50 px-4 md:px-6 py-3 rounded-2xl border border-slate-100">
+                    <span className="text-sm md:text-base font-black text-slate-500">عدد الصفحات:</span>
+                    <div className="flex items-center gap-2">
                       {[3, 5, 7].map(n => (
                         <button
                           key={n}
                           onClick={() => setPageCount(n)}
-                          className={`w-12 h-12 rounded-xl font-black text-xl transition-all ${pageCount === n ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-400 border-2 border-slate-100'}`}
+                          className={`w-10 h-10 md:w-12 md:h-12 rounded-xl font-black text-lg transition-all ${pageCount === n ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200'}`}
                         >
                           {n}
                         </button>
@@ -442,9 +460,9 @@ const App: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={startMagic}
+                    onClick={() => { triggerHaptic('success'); startMagic(); }}
                     disabled={!topic.trim()}
-                    className="w-full md:w-auto px-20 py-8 bg-indigo-600 text-white rounded-[3rem] font-black text-4xl shadow-[0_15px_0_#4338ca] hover:scale-105 active:translate-y-2 active:shadow-none transition-all disabled:opacity-50"
+                    className="w-full px-8 py-5 md:py-6 bg-indigo-600 text-white rounded-2xl md:rounded-[2rem] font-black text-2xl md:text-3xl shadow-[0_8px_0_#4338ca] md:shadow-[0_12px_0_#4338ca] hover:scale-[1.02] active:translate-y-1 active:shadow-[0_4px_0_#4338ca] transition-all disabled:opacity-50"
                   >
                     ابدأ السحر! ✨
                   </button>
@@ -453,18 +471,18 @@ const App: React.FC = () => {
             )}
 
             {story && !isGenerating && (
-              <div className="space-y-12">
-                <div className="flex justify-between items-center px-4">
-                  <button onClick={closeStory} className="text-slate-400 font-black text-2xl hover:text-rose-500 transition-colors flex items-center gap-2">
-                    <span>🏠</span> العودة للبداية
+              <div className="space-y-6 md:space-y-8">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-3 px-2">
+                  <button onClick={closeStory} className="text-slate-400 font-bold text-base hover:text-rose-500 transition-colors flex items-center gap-1 order-2 md:order-1">
+                    <span>🏠</span> العودة
                   </button>
-                  <h2 className="text-4xl font-black text-indigo-900 drop-shadow-sm">{story.title}</h2>
-                  <div className="flex items-center gap-4">
+                  <h2 className="text-xl md:text-2xl font-black text-indigo-900 text-center order-1 md:order-2 line-clamp-1">{story.title}</h2>
+                  <div className="flex items-center order-3">
                     <button
                       onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-                      className={`px-6 py-3 rounded-2xl font-black transition-all ${isAutoPlaying ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}
+                      className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${isAutoPlaying ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}
                     >
-                      {isAutoPlaying ? '⏸️ إيقاف التلقائي' : '▶️ تشغيل تلقائي'}
+                      {isAutoPlaying ? '⏸️ إيقاف' : '▶️ تشغيل'}
                     </button>
                   </div>
                 </div>
@@ -472,9 +490,14 @@ const App: React.FC = () => {
                 <StoryPage
                   page={currentPageObj}
                   pageNumber={currentPage + 1}
+                  totalPages={storyPages.length}
                   autoStart={isAutoPlaying}
                   onChoiceSelected={handleChoiceSelected}
                   isChoiceLoading={isChoiceLoading}
+                  onSwipeLeft={nextBtn}
+                  onSwipeRight={prevBtn}
+                  canSwipeLeft={!isLastPage && !hasPendingChoices}
+                  canSwipeRight={currentPage > 0}
                   onEnded={() => {
                     // Use refs to get latest values (avoid stale closure)
                     const autoPlay = isAutoPlayingRef.current;
@@ -514,10 +537,32 @@ const App: React.FC = () => {
                   >
                     ⬅️
                   </button>
-                  <div className="flex gap-4">
-                    {storyPages.map((_, i) => (
-                      <div key={i} className={`w-4 h-4 rounded-full transition-all ${i === currentPage ? 'w-12 bg-indigo-600' : 'bg-indigo-100'}`}></div>
-                    ))}
+                  <div className="flex gap-2 items-center">
+                    {storyPages.map((_, i) => {
+                      // Check if this page has pending choices that block navigation
+                      const pageHasPendingChoices = storyPages[i]?.choices?.length > 0 && !storyPages[i]?.chosenChoiceId;
+                      const canNavigateToPage = i <= currentPage || !pageHasPendingChoices;
+                      
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => canNavigateToPage && setCurrentPage(i)}
+                          disabled={!canNavigateToPage}
+                          aria-label={`الصفحة ${i + 1}`}
+                          className={`min-w-[44px] min-h-[44px] rounded-full transition-all flex items-center justify-center
+                            ${i === currentPage 
+                              ? 'bg-indigo-600 scale-110 shadow-lg' 
+                              : canNavigateToPage 
+                                ? 'bg-indigo-100 hover:bg-indigo-300 hover:scale-105 active:scale-95' 
+                                : 'bg-indigo-50 opacity-50 cursor-not-allowed'
+                            }`}
+                        >
+                          <span className={`text-sm font-black ${i === currentPage ? 'text-white' : 'text-indigo-400'}`}>
+                            {i + 1}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                   <button
                     disabled={isLastPage || hasPendingChoices}
@@ -531,15 +576,22 @@ const App: React.FC = () => {
             )}
           </main>
 
-          <AssistantChat />
-
           {showLibrary && (
             <LibraryView
               stories={currentProfile.library || []}
               onSelect={loadStoryFromLibrary}
-              onClose={() => setShowLibrary(false)}
+              onClose={() => { setShowLibrary(false); setActiveTab('home'); }}
             />
           )}
+
+          {/* Bottom Navigation Bar */}
+          <BottomNavBar
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            libraryCount={currentProfile.library?.length || 0}
+            profileName={currentProfile.name}
+            profileAvatar={currentProfile.avatar}
+          />
         </>
       )}
     </div>
