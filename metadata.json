@@ -1,0 +1,7 @@
+{
+  "name": "حكاياتي الذكية (My Smart Tales)",
+  "description": "An interactive Arabic storybook for children that generates unique stories, beautiful illustrations, and reads them aloud using advanced AI models.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

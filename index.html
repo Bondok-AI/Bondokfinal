@@ -1,0 +1,92 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>حكاياتي الذكية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Cairo', 'Almarai', sans-serif;
+        background: linear-gradient(135deg, #fef9c3 0%, #fff7ed 50%, #ecfeff 100%);
+        background-attachment: fixed;
+        color: #1e293b;
+        overflow-x: hidden;
+      }
+      
+      /* Magical Background Pattern */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("https://www.transparenttextures.com/patterns/cubes.png");
+        opacity: 0.05;
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      .magic-shadow {
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+      }
+      
+      .toy-button {
+        box-shadow: 0 8px 0px #d97706;
+        transition: all 0.1s ease;
+      }
+      .toy-button:active {
+        box-shadow: 0 2px 0px #d97706;
+        transform: translateY(6px);
+      }
+
+      @keyframes sparkle {
+        0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        50% { transform: scale(1.2) rotate(15deg); opacity: 0.8; }
+      }
+      .animate-sparkle {
+        animation: sparkle 2s ease-in-out infinite;
+      }
+
+      .page-transition-enter {
+        animation: slideIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+      }
+      @keyframes slideIn {
+        0% { transform: translateX(50px); opacity: 0; }
+        100% { transform: translateX(0); opacity: 1; }
+      }
+
+      /* Custom Scrollbar for a cleaner look */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 10px;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
