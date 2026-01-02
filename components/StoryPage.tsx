@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Page, PageChoice } from '../types';
 import { decodeBase64, decodeAudioData, speakWithBrowser } from '../services/geminiService';
 import LazyImage from './LazyImage';
+import { SpeakerIcon, StopIcon, ArrowLeftIcon, ArrowRightIcon } from './Icons';
 
 interface StoryPageProps {
   page: Page | undefined;
@@ -48,15 +49,15 @@ const StoryPage: React.FC<StoryPageProps> = ({
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   // Haptic feedback helper
-  const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'light') => {
+  const triggerHaptic = useCallback((style: 'light' | 'medium' | 'heavy' = 'light') => {
     if ('vibrate' in navigator) {
       const patterns = { light: 10, medium: 20, heavy: 30 };
       navigator.vibrate(patterns[style]);
     }
-  };
+  }, []);
 
   // Touch handlers for swipe navigation
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     touchStartRef.current = {
       x: touch.clientX,
@@ -64,9 +65,9 @@ const StoryPage: React.FC<StoryPageProps> = ({
       time: Date.now()
     };
     setIsSwiping(true);
-  };
+  }, []);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
     
     const touch = e.touches[0];
@@ -89,9 +90,9 @@ const StoryPage: React.FC<StoryPageProps> = ({
     }
     
     setSwipeOffset(Math.max(-maxOffset, Math.min(maxOffset, offset)));
-  };
+  }, [canSwipeLeft, canSwipeRight]);
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = useCallback(() => {
     if (!touchStartRef.current) return;
     
     const deltaTime = Date.now() - touchStartRef.current.time;
@@ -114,9 +115,9 @@ const StoryPage: React.FC<StoryPageProps> = ({
     setSwipeOffset(0);
     setIsSwiping(false);
     touchStartRef.current = null;
-  };
+  }, [swipeOffset, canSwipeLeft, canSwipeRight, onSwipeLeft, onSwipeRight, triggerHaptic]);
 
-  const stopAudio = () => {
+  const stopAudio = useCallback(() => {
     playRequestIdRef.current += 1;
     if (fallbackTimeoutRef.current) {
       window.clearTimeout(fallbackTimeoutRef.current);
@@ -133,7 +134,7 @@ const StoryPage: React.FC<StoryPageProps> = ({
       window.speechSynthesis.cancel();
     }
     setIsPlaying(false);
-  };
+  }, []);
 
   const playAudio = async () => {
     if (!page?.text_ar) return;
@@ -235,15 +236,15 @@ const StoryPage: React.FC<StoryPageProps> = ({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Swipe direction indicators */}
+      {/* Swipe direction indicators - RTL: سحب يمين = سابق، سحب يسار = تالي */}
       <div className={`absolute left-4 top-1/2 -translate-y-1/2 z-20 transition-all duration-200 ${showRightIndicator ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
-        <div className="bg-indigo-600 text-white p-4 rounded-full shadow-xl">
-          <span className="text-2xl">→</span>
+        <div className="bg-indigo-600 text-white p-3 md:p-4 rounded-full shadow-xl" aria-hidden="true">
+          <span className="text-xl md:text-2xl">◀️</span>
         </div>
       </div>
       <div className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 transition-all duration-200 ${showLeftIndicator ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}>
-        <div className="bg-indigo-600 text-white p-4 rounded-full shadow-xl">
-          <span className="text-2xl">←</span>
+        <div className="bg-indigo-600 text-white p-3 md:p-4 rounded-full shadow-xl" aria-hidden="true">
+          <span className="text-xl md:text-2xl">▶️</span>
         </div>
       </div>
 
@@ -274,19 +275,20 @@ const StoryPage: React.FC<StoryPageProps> = ({
         </div>
 
         {hasChoices && (
-          <div className="space-y-6 pt-4">
-            <p className="text-2xl font-black text-indigo-600">ماذا تختار أن يفعل بطلنا الآن؟ 🤔</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-              {page.choices?.map((choice) => (
+          <div className="space-y-4 md:space-y-6 pt-2 md:pt-4">
+            <p className="text-xl md:text-2xl font-black text-indigo-700">ماذا تختار أن يفعل بطلنا الآن؟ 🤔</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-w-2xl mx-auto px-2">
+              {page.choices?.map((choice, index) => (
                 <button
                   key={choice.id}
                   disabled={isLocked || isChoiceLoading}
                   onClick={() => onChoiceSelected?.(choice)}
-                  className={`p-6 rounded-3xl font-black text-xl transition-all shadow-lg border-4 ${page.chosenChoiceId === choice.id
-                      ? 'bg-indigo-600 text-white border-indigo-600'
+                  aria-label={`الاختيار ${index + 1}: ${choice.text_ar}`}
+                  className={`p-4 md:p-6 rounded-2xl md:rounded-3xl font-bold md:font-black text-lg md:text-xl transition-all shadow-lg border-4 focus-visible:ring-4 focus-visible:ring-offset-2 ${page.chosenChoiceId === choice.id
+                      ? 'bg-indigo-600 text-white border-indigo-600 focus-visible:ring-indigo-300'
                       : isLocked
-                        ? 'bg-slate-100 text-slate-400 border-slate-100 opacity-50'
-                        : 'bg-white text-indigo-700 border-indigo-100 hover:scale-105 hover:border-indigo-400'
+                        ? 'bg-slate-100 text-slate-500 border-slate-200 opacity-60'
+                        : 'bg-white text-indigo-700 border-indigo-200 hover:scale-[1.02] hover:border-indigo-400 hover:shadow-xl focus-visible:ring-indigo-400'
                     }`}
                 >
                   {choice.text_ar}
@@ -294,27 +296,29 @@ const StoryPage: React.FC<StoryPageProps> = ({
               ))}
             </div>
             {isChoiceLoading && (
-              <div className="flex items-center justify-center gap-3 text-indigo-400 font-bold animate-pulse">
-                <div className="w-4 h-4 bg-indigo-400 rounded-full animate-bounce"></div>
-                <span>جاري متابعة القصة حسب اختيارك...</span>
+              <div className="flex items-center justify-center gap-3 text-indigo-600 font-bold" role="status" aria-live="polite">
+                <div className="w-3 h-3 md:w-4 md:h-4 bg-indigo-500 rounded-full animate-pulse"></div>
+                <span className="text-base md:text-lg">جاري متابعة القصة حسب اختيارك... ✨</span>
               </div>
             )}
           </div>
         )}
 
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-4">
           <button
             onClick={playAudio}
-            className={`group flex items-center gap-6 px-16 py-8 rounded-[3rem] font-black text-3xl transition-all transform active:scale-95 shadow-2xl ${isPlaying ? 'bg-rose-500 text-white shadow-[0_12px_0_#be123c]' : 'bg-emerald-500 text-white shadow-[0_12px_0_#047857]'
+            aria-label={isPlaying ? 'إيقاف الصوت' : 'تشغيل الصوت'}
+            aria-pressed={isPlaying}
+            className={`group flex items-center gap-3 md:gap-6 px-8 py-4 md:px-14 md:py-6 rounded-2xl md:rounded-[3rem] font-black text-xl md:text-2xl transition-all transform active:scale-95 shadow-xl md:shadow-2xl focus-visible:ring-4 focus-visible:ring-offset-2 ${isPlaying ? 'bg-rose-500 text-white shadow-[0_6px_0_#be123c] md:shadow-[0_10px_0_#be123c] focus-visible:ring-rose-300' : 'bg-emerald-500 text-white shadow-[0_6px_0_#047857] md:shadow-[0_10px_0_#047857] focus-visible:ring-emerald-300'
               }`}
           >
             {isPlaying ? (
-              <div className="flex items-center gap-3">
-                <span className="animate-pulse">⏹️</span> إيقاف
+              <div className="flex items-center gap-2 md:gap-3">
+                <StopIcon size={24} className="md:w-7 md:h-7" /> إيقاف
               </div>
             ) : (
-              <div className="flex items-center gap-3">
-                <span>🔊</span> استمع للحكاية
+              <div className="flex items-center gap-2 md:gap-3">
+                <SpeakerIcon size={24} className="md:w-7 md:h-7" /> استمع للحكاية
               </div>
             )}
           </button>
@@ -325,4 +329,4 @@ const StoryPage: React.FC<StoryPageProps> = ({
   );
 };
 
-export default StoryPage;
+export default memo(StoryPage);

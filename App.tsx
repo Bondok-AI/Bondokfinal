@@ -9,6 +9,10 @@ import LibraryView from './components/LibraryView';
 import ProfileSelector from './components/ProfileSelector';
 import ParentGate from './components/ParentGate';
 import BottomNavBar, { NavTab } from './components/BottomNavBar';
+import ThemeToggle from './components/ThemeToggle';
+import ReadingProgress from './components/ReadingProgress';
+import Celebration from './components/Celebration';
+import useTheme from './hooks/useTheme';
 
 const App: React.FC = () => {
   const [currentProfile, setCurrentProfile] = useState<ChildProfile | null>(null);
@@ -51,6 +55,10 @@ const App: React.FC = () => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [genProgress, setGenProgress] = useState({ current: 0, total: 0, stage: '' });
   const [isChoiceLoading, setIsChoiceLoading] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Theme management
+  const { theme, resolvedTheme, toggleTheme } = useTheme();
 
   // Race condition protection
   const choiceProcessingLock = useRef(false);
@@ -398,9 +406,13 @@ const App: React.FC = () => {
       ) : (
         <>
           {/* Compact header with welcome message */}
-          <header className="text-center mb-6 md:mb-10 pt-2">
-            <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-blue-600 to-indigo-800 mb-2 select-none">حكاياتي ✨</h1>
-            <p className="text-lg md:text-xl text-indigo-600 font-bold">
+          <header className="text-center mb-6 md:mb-10 pt-2 relative">
+            {/* Theme Toggle in top corner */}
+            <div className="absolute top-0 left-0">
+              <ThemeToggle theme={resolvedTheme} onToggle={toggleTheme} />
+            </div>
+            <h1 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-blue-600 to-indigo-800 dark:from-blue-400 dark:to-indigo-400 mb-2 select-none">حكاياتي ✨</h1>
+            <p className="text-lg md:text-xl text-indigo-600 dark:text-indigo-400 font-bold">
               مرحباً {currentProfile.name}! {currentProfile.avatar}
             </p>
           </header>
@@ -444,14 +456,16 @@ const App: React.FC = () => {
                 )}
 
                 <div className="flex flex-col items-center gap-4 md:gap-6">
-                  <div className="flex items-center gap-3 md:gap-4 bg-slate-50 px-4 md:px-6 py-3 rounded-2xl border border-slate-100">
-                    <span className="text-sm md:text-base font-black text-slate-500">عدد الصفحات:</span>
+                  <div className="flex items-center gap-3 md:gap-4 bg-slate-50 px-4 md:px-6 py-3 rounded-2xl border border-slate-200">
+                    <span className="text-sm md:text-base font-black text-slate-700">عدد الصفحات:</span>
                     <div className="flex items-center gap-2">
                       {[3, 5, 7].map(n => (
                         <button
                           key={n}
                           onClick={() => setPageCount(n)}
-                          className={`w-10 h-10 md:w-12 md:h-12 rounded-xl font-black text-lg transition-all ${pageCount === n ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200'}`}
+                          aria-label={`${n} صفحات`}
+                          aria-pressed={pageCount === n}
+                          className={`w-10 h-10 md:w-12 md:h-12 rounded-xl font-black text-lg transition-all focus-visible:ring-2 focus-visible:ring-indigo-400 ${pageCount === n ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-300 hover:border-indigo-300'}`}
                         >
                           {n}
                         </button>
@@ -473,19 +487,25 @@ const App: React.FC = () => {
             {story && !isGenerating && (
               <div className="space-y-6 md:space-y-8">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-3 px-2">
-                  <button onClick={closeStory} className="text-slate-400 font-bold text-base hover:text-rose-500 transition-colors flex items-center gap-1 order-2 md:order-1">
+                  <button onClick={closeStory} aria-label="العودة للرئيسية" className="text-slate-600 dark:text-slate-400 font-bold text-base hover:text-rose-500 transition-colors flex items-center gap-2 order-2 md:order-1 focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-lg px-2 py-1">
                     <span>🏠</span> العودة
                   </button>
-                  <h2 className="text-xl md:text-2xl font-black text-indigo-900 text-center order-1 md:order-2 line-clamp-1">{story.title}</h2>
+                  <h2 className="text-xl md:text-2xl font-black text-indigo-900 dark:text-indigo-100 text-center order-1 md:order-2 line-clamp-1">{story.title}</h2>
                   <div className="flex items-center order-3">
                     <button
                       onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-                      className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${isAutoPlaying ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}
+                      className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${isAutoPlaying ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}
                     >
                       {isAutoPlaying ? '⏸️ إيقاف' : '▶️ تشغيل'}
                     </button>
                   </div>
                 </div>
+
+                {/* Reading Progress Bar */}
+                <ReadingProgress 
+                  currentPage={currentPage + 1} 
+                  totalPages={storyPages.length} 
+                />
 
                 <StoryPage
                   page={currentPageObj}
@@ -510,9 +530,10 @@ const App: React.FC = () => {
                       setCurrentPage(prev => {
                         const nextPageIndex = prev + 1;
 
-                        // Check if we're at the last page
+                        // Check if we're at the last page - show celebration!
                         if (nextPageIndex >= currentStory.pages.length) {
                           setIsAutoPlaying(false);
+                          setShowCelebration(true);
                           return prev;
                         }
 
@@ -529,13 +550,14 @@ const App: React.FC = () => {
                   }}
                 />
 
-                <div className="flex justify-between items-center max-w-5xl mx-auto w-full px-8">
+                <div className="flex justify-between items-center max-w-5xl mx-auto w-full px-4 md:px-8">
                   <button
                     disabled={currentPage === 0}
                     onClick={prevBtn}
-                    className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-4xl shadow-xl border-4 border-white ring-4 ring-indigo-50 disabled:opacity-30 hover:scale-110 active:scale-90 transition-all"
+                    aria-label="الصفحة السابقة"
+                    className="w-14 h-14 md:w-20 md:h-20 bg-white rounded-full flex items-center justify-center text-2xl md:text-4xl shadow-xl border-4 border-white ring-4 ring-indigo-50 disabled:opacity-30 hover:scale-110 active:scale-90 transition-all focus-visible:ring-4 focus-visible:ring-indigo-400"
                   >
-                    ⬅️
+                    ➡️
                   </button>
                   <div className="flex gap-2 items-center">
                     {storyPages.map((_, i) => {
@@ -567,9 +589,10 @@ const App: React.FC = () => {
                   <button
                     disabled={isLastPage || hasPendingChoices}
                     onClick={nextBtn}
-                    className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-4xl shadow-xl border-4 border-white ring-4 ring-indigo-50 disabled:opacity-30 hover:scale-110 active:scale-90 transition-all"
+                    aria-label="الصفحة التالية"
+                    className="w-14 h-14 md:w-20 md:h-20 bg-white rounded-full flex items-center justify-center text-2xl md:text-4xl shadow-xl border-4 border-white ring-4 ring-indigo-50 disabled:opacity-30 hover:scale-110 active:scale-90 transition-all focus-visible:ring-4 focus-visible:ring-indigo-400"
                   >
-                    ➡️
+                    ⬅️
                   </button>
                 </div>
               </div>
@@ -581,6 +604,14 @@ const App: React.FC = () => {
               stories={currentProfile.library || []}
               onSelect={loadStoryFromLibrary}
               onClose={() => { setShowLibrary(false); setActiveTab('home'); }}
+            />
+          )}
+
+          {/* Celebration Animation */}
+          {showCelebration && (
+            <Celebration
+              onClose={() => setShowCelebration(false)}
+              childName={currentProfile.name}
             />
           )}
 
